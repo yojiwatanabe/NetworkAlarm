@@ -1,0 +1,5 @@
+2018-07-19 12:22:29,102 INFO  - - - Started Execution
+2018-07-19 12:22:37,307 INFO  - - - ALERT #1: Username and password sent in the clear from 198.168.0.1 (TCP) (username:password)!
+2018-07-19 12:22:49,018 INFO  - - - ALERT #2: Username and password sent in the clear from 127.0.0.1 (TCP) (base_64:is_not_encryption)!
+2018-07-19 12:23:01,031 INFO  - - - ALERT #3: Username and password sent in the clear from 255.255.255.255 (TCP) (admin:P@ssword!)!
+2018-07-19 12:23:04,767 INFO  - - - Finished Execution
