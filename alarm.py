@@ -13,15 +13,17 @@ Protects against nmap stealthy scans, Nikto scans, Shellshock attacks, and
 credentials sent in-the-clear.
 """
 
-from base64 import b64decode
-from scapy.all import *
 import pcapy
+# import logging
 import argparse
+from scapy.all import *
+from base64 import b64decode
+from datetime import datetime
 
 # Static Global Vars
-NULL_FLAG = 0
-FIN_FLAG = 1
-XMAS_FLAG = 41
+NULL_FLAG = 0b00000000
+FIN_FLAG = 0b00000001
+XMAS_FLAG = 0b00101001
 HTTP_AUTH_KEYWD = "Authorization: Basic"
 NIKTO_KEYWORDS = ["Nikto", "nikto", "NIKTO"]
 SHOCK_KEYWORDS = ["() { :; };", "(){:;};", "() { :;};", "() { : ; } ;",
@@ -43,6 +45,7 @@ PASS_KEYWORDS = ["pass", "ahd_password", "pass password", "_password passwd",
 PROTOCOLS = ["HOPOPT", "ICMP", "IGMP", "GGP", "IPv4", "ST", "TCP", "CBT",
              "EGP", "IGP", "BBN-RCC-MON", "NVP-II", "PUP", "ARGUS",
              "EMCON", "XNET", "CHAOS", ]
+LOG = 'logs/{{{}}}.log'
 
 # Dynamic Global Vars
 ALERT_COUNTER = 1
@@ -74,8 +77,11 @@ def print_alert(scan_type, src, proto, payload):
 
     if payload == "":
         print("ALERT #%d: %s is detected from %s (%s)%s!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto], payload))
+        logging.info("ALERT #%d: %s is detected from %s (%s)%s!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto],
+                                                                    payload))
     else:
         print("ALERT #%d: %s from %s (%s) (%s)!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto], payload))
+        logging.info("ALERT #%d: %s from %s (%s) (%s)!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto], payload))
 
 
 # scan_check()
@@ -186,6 +192,10 @@ def find_user_pass(raw_packet, parsed_packet):
         if keyword in str(raw_data).lower():
             password = get_password(raw_data)
             user_pass = tempUserPass + ":" + password
+
+            if not check_if_printable(user_pass):
+                continue
+
             tempUserPass = ""
             print_alert("Username and password sent in the clear", raw_packet.srcIP, raw_packet.protocol, user_pass)
             tempUserPass = ""
@@ -195,13 +205,17 @@ def find_user_pass(raw_packet, parsed_packet):
 # check_if_printable()
 #
 # In order to try and decrease false positives for credentials sent in-the-clear, check if the username and password are
-# both ASCII characters, as
+# ASCII characters and non-control characters
 def check_if_printable(username_password):
     try:
-        username_password.decode('ascii')
-    except UnicodeDecodeError:
-        # Non-ASCII, not a set of credentials
+        for character in username_password:
+            # Check that credentials only use extended-ASCII and non-control characters
+            if ord(character) > 255 or ord(character) < 32:
+                return False
+    # Unable to get char value
+    except TypeError:
         return False
+
     return True
 
 
@@ -219,7 +233,8 @@ def user_pass_check(raw_packet, parsed_packet):
             words = line.split()
             user_pass = words[2]
             if ((len(user_pass) % 4) == 0) and (user_pass[-1] == '='):
-                check_if_printable(user_pass)
+                if not check_if_printable(user_pass):
+                    pass
                 print_alert("Username and password sent in the clear", raw_packet.srcIP, raw_packet.protocol,
                             b64decode(user_pass))
                 ALERT_COUNTER += 1
@@ -258,6 +273,10 @@ parser.add_argument('-i', dest='interface', help='Network interface to sniff on'
 parser.add_argument('-r', dest='pcapfile', help='A PCAP file to read')
 args = parser.parse_args()
 
+log_name = LOG.replace('{{{}}}', '{date:%Y-%m-%d_%H:%M:%S}'.format(date=datetime.now()))
+logging.basicConfig(filename=log_name, format='%(asctime)s %(levelname)-5s - - - %(message)s', level=logging.INFO)
+logging.info('Started Execution')
+
 if args.pcapfile:
     try:
         print("Reading PCAP file %(filename)s..." % {"filename": args.pcapfile})
@@ -276,3 +295,5 @@ else:
     except Exception as e:
         print type(e)
         print "Sorry, can\'t read network traffic. Are you root?"
+
+logging.info('Finished Execution')
