@@ -216,7 +216,7 @@ def user_pass_check(raw_packet, parsed_packet):
             if ((len(user_pass) % 4) == 0) and (user_pass[-1] == '='):
                 if not check_if_printable(user_pass):
                     pass
-                print_alert("Username and password sent in the clear", raw_packet.srcIP, raw_packet.protocol,
+                print_alert("Username and password sent in-the-clear", raw_packet.srcIP, raw_packet.protocol,
                             b64decode(user_pass))
 
     raw_data = str(parsed_packet.getlayer(Raw))
@@ -231,17 +231,25 @@ def user_pass_check(raw_packet, parsed_packet):
 # there are credentials in the packet,
 def credit_card_check(in_packet):
     visa_num = findall('4[0-9]{12}(?:[0-9]{3})?', raw)
-    mastercard_num = findall('5[1-5][0-9]{14}', raw)
+    mastercard_num = findall('(?:5[1-5][0-9]{2}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)[0-9]{12}', raw)
+    diners_club_num = findall('3(?:0[0-5]|[68][0-9])[0-9]{11}', raw)
+    discover_num = findall('6(?:011|5[0-9]{2})[0-9]{12}', raw)
+    jpc_num = findall('(?:2131|1800|35\d{3})\d{11}', raw)
     american_express_num = findall('3[47][0-9]{13}', raw)
 
     if visa_num:
-        print_alert("Visa CC # sent in the clear", in_packet.srcIP, in_packet.protocol, visa_num)
-
+        print_alert("Visa CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, visa_num)
     if mastercard_num:
-        print_alert("MasterCard CC # sent in the clear", in_packet.srcIP, in_packet.protocol, mastercard_num)
-
+        print_alert("MasterCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, mastercard_num)
+    if diners_club_num:
+        print_alert("Diners Club CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, diners_club_num)
+    if discover_num:
+        print_alert("MasterCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, discover_num)
+    if jpc_num:
+        print_alert("MasterCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, jpc_num)
     if american_express_num:
-        print_alert("MasterCard CC # sent in the clear", in_packet.srcIP, in_packet.protocol, american_express_num)
+        print_alert("American Express CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol,
+                    american_express_num)
 
 
 # sniff_packet()
