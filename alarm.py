@@ -14,8 +14,8 @@ credentials sent in-the-clear.
 """
 
 import pcapy
-# import logging
 import argparse
+from re import findall
 from scapy.all import *
 from base64 import b64decode
 from datetime import datetime
@@ -26,25 +26,17 @@ FIN_FLAG = 0b00000001
 XMAS_FLAG = 0b00101001
 HTTP_AUTH_KEYWD = "Authorization: Basic"
 NIKTO_KEYWORDS = ["Nikto", "nikto", "NIKTO"]
-SHOCK_KEYWORDS = ["() { :; };", "(){:;};", "() { :;};", "() { : ; } ;",
-                  "() {:; };"]
-USER_KEYWORDS = ["mac", "log", "login", "wpname", "ahd_username", "unickname",
-                 "nickname", "user", "user_name", "alias" "pseudo", "email",
-                 "username", "_username", "userid", "form_loginname",
-                 "loginname", "login_id", "loginid", "session_key",
-                 "sessionkey", "pop_login", " uid", " id", "user_id",
-                 "screenname", "uname", "ulogin", "acctname", "account",
-                 "member", "mailaddress", "membername", "login_username",
-                 "login_email", "loginusername", "loginemail", "uin",
-                 "sign-in"]
-PASS_KEYWORDS = ["pass", "ahd_password", "pass password", "_password passwd",
-                 "session_password", "sessionpassword", "login_password",
-                 "loginpassword", "form_pw", "pw", "userpassword", "pwd",
-                 "upassword", "login_password", "passwort", "passwrd",
-                 "wppassword", "upasswd"]
-PROTOCOLS = ["HOPOPT", "ICMP", "IGMP", "GGP", "IPv4", "ST", "TCP", "CBT",
-             "EGP", "IGP", "BBN-RCC-MON", "NVP-II", "PUP", "ARGUS",
-             "EMCON", "XNET", "CHAOS", ]
+SHOCK_KEYWORDS = ["() { :; };", "(){:;};", "() { :;};", "() { : ; } ;", "() {:; };"]
+USER_KEYWORDS = ["mac", "log", "login", "wpname", "ahd_username", "unickname", "nickname", "user", "user_name", "alias",
+                 "pseudo", "email", "username", "_username", "userid", "form_loginname", "loginname", "login_id",
+                 "loginid", "session_key", "sessionkey", "pop_login", " uid", " id", "user_id", "screenname", "uname",
+                 "ulogin", "acctname", "account", "member", "mailaddress", "membername", "login_username",
+                 "login_email", "loginusername", "loginemail", "uin", "sign-in"]
+PASS_KEYWORDS = ["pass", "ahd_password", "pass password", "_password passwd", "session_password", "sessionpassword",
+                 "login_password", "loginpassword", "form_pw", "pw", "userpassword", "pwd", "upassword",
+                 "login_password", "passwort", "passwrd", "wppassword", "upasswd"]
+PROTOCOLS = ["HOPOPT", "ICMP", "IGMP", "GGP", "IPv4", "ST", "TCP", "CBT", "EGP", "IGP", "BBN-RCC-MON", "NVP-II", "PUP",
+             "ARGUS", "EMCON", "XNET", "CHAOS", ]
 LOG = 'logs/{{{}}}.log'
 
 # Dynamic Global Vars
@@ -54,8 +46,7 @@ tempUserPass = ''
 
 # Packet class
 #
-# Holds information from the packet so the instance of a Scapy Packet does not
-# need to be passed around.
+# Holds information from the packet so the instance of a Scapy Packet does not need to be passed around.
 class Packet:
     srcIP = ''
     protocol = ''
@@ -75,6 +66,7 @@ class Packet:
 def print_alert(scan_type, src, proto, payload):
     global ALERT_COUNTER
 
+    ALERT_COUNTER += 1
     if payload == "":
         print("ALERT #%d: %s is detected from %s (%s)%s!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto], payload))
         logging.info("ALERT #%d: %s is detected from %s (%s)%s!" % (ALERT_COUNTER, scan_type, src, PROTOCOLS[proto],
@@ -86,41 +78,35 @@ def print_alert(scan_type, src, proto, payload):
 
 # scan_check()
 #
-# Checks given Packet object for traces of a NULL, FIN, or XMAS nmap stealthy
-# scan. Does this by checking what flags are set in the TCP layer, which will
-# allow for the detection of a stealthy scan. Calls on print_alert() if packet
-# seems to be from an nmap stealth scan.
-def scan_check(packet_to_check):
+# Checks given Packet object for traces of a NULL, FIN, or XMAS nmap stealthy scan. Does this by checking what flags are
+# set in the TCP layer, which will allow for the detection of a stealthy scan. Calls on print_alert() if packet seems to
+# be from an nmap stealth scan.
+def scan_check(in_packet):
     global ALERT_COUNTER
 
-    if packet_to_check.flags == NULL_FLAG:  # NULL SCAN
-        print_alert("NULL scan", packet_to_check.srcIP, packet_to_check.protocol, "")
-        ALERT_COUNTER += 1
-    elif packet_to_check.flags == FIN_FLAG:  # FIN SCAN
-        print_alert("FIN scan", packet_to_check.srcIP, packet_to_check.protocol, "")
-        ALERT_COUNTER += 1
-    elif packet_to_check.flags == XMAS_FLAG:  # XMAS SCAN
-        print_alert("XMAS scan", packet_to_check.srcIP, packet_to_check.protocol, "")
+    if in_packet.flags == NULL_FLAG:  # NULL SCAN
+        print_alert("NULL scan", in_packet.srcIP, in_packet.protocol, "")
+    elif in_packet.flags == FIN_FLAG:  # FIN SCAN
+        print_alert("FIN scan", in_packet.srcIP, in_packet.protocol, "")
+    elif in_packet.flags == XMAS_FLAG:  # XMAS SCAN
+        print_alert("XMAS scan", in_packet.srcIP, in_packet.protocol, "")
 
 
 # nikto_check()
 #
-# Checks given Packet object for traces of a Nikto scan. Does this by checking 
-# for references to keywords associated with the Nikto program (NIKTO_KEYWORDS)
-# to identify a Nikto scan.
-def nikto_check(packet_to_check):
+# Checks given Packet object for traces of a Nikto scan. Does this by checking for references to keywords associated
+# with the Nikto program (NIKTO_KEYWORDS) to identify a Nikto scan.
+def nikto_check(in_packet):
     global ALERT_COUNTER
 
     for keyword in NIKTO_KEYWORDS:
-        if keyword in packet_to_check.rawData:
-            print_alert("Nikto scan", packet_to_check.srcIP, packet_to_check.protocol, "")
-            ALERT_COUNTER += 1
+        if keyword in in_packet.rawData:
+            print_alert("Nikto scan", in_packet.srcIP, in_packet.protocol, "")
 
 
 # get_shock_script()
 #
-# Helper function to obtain the command that was attempted to be run in a
-# Shellshock attack. Used by shellshock_check().
+# Helper function to obtain the command that was attempted to be run in a Shellshock attack. Used by shellshock_check().
 def get_shock_script(packet_data):
     shellshock_line = ""  # Return empty string if not found
 
@@ -136,21 +122,19 @@ def get_shock_script(packet_data):
 
 # shellshock_check()
 #
-# Checks a packet for traces of a Shellshock attack. Does this by 
-def shellshock_check(packet_to_check):
+# Checks a packet for traces of a Shellshock attack. Does this by looking for shellshock entry queries.
+def shellshock_check(in_packet):
     global ALERT_COUNTER
 
     for keyword in SHOCK_KEYWORDS:
-        if keyword in packet_to_check.rawData:
-            print_alert("Shellshock attack", packet_to_check.srcIP, packet_to_check.protocol,
-                        get_shock_script(packet_to_check.rawData))
-            ALERT_COUNTER += 1
+        if keyword in in_packet.rawData:
+            print_alert("Shellshock attack", in_packet.srcIP, in_packet.protocol,
+                        get_shock_script(in_packet.rawData))
 
 
 # get_username()
 #
-# Returns the username that was found in the raw data of a network packet. 
-# Helper function to find_user_pass().
+# Returns the username that was found in the raw data of a network packet. Helper function to find_user_pass().
 def get_username(raw_data):
     words = str(raw_data).split()
 
@@ -162,8 +146,7 @@ def get_username(raw_data):
 
 # getPassword()
 #
-# Returns the password that was found in the raw data of a network packet. 
-# Helper function to find_user_pass().
+# Returns the password that was found in the raw data of a network packet. Helper function to find_user_pass().
 def get_password(raw_data):
     words = str(raw_data).split()
 
@@ -175,10 +158,9 @@ def get_password(raw_data):
 
 # find_user_pass()
 #
-# Helper function to user_pass_check, where after it is determined that a username
-# and password was sent in the clear, it will call on this function in order to
-# find the username and password combination (even if split between packets) and
-# calls on the print_alert() function.
+# Helper function to user_pass_check, where after it is determined that a username and password was sent in the clear,
+# it will call on this function in order to find the username and password combination (even if split between packets)
+# and calls on the print_alert() function.
 def find_user_pass(raw_packet, parsed_packet):
     global ALERT_COUNTER, tempUserPass
     raw_data = parsed_packet.getlayer(Raw)  # Get only the Raw layer of the raw_packet
@@ -199,7 +181,6 @@ def find_user_pass(raw_packet, parsed_packet):
             tempUserPass = ""
             print_alert("Username and password sent in the clear", raw_packet.srcIP, raw_packet.protocol, user_pass)
             tempUserPass = ""
-            ALERT_COUNTER += 1
 
 
 # check_if_printable()
@@ -237,12 +218,30 @@ def user_pass_check(raw_packet, parsed_packet):
                     pass
                 print_alert("Username and password sent in the clear", raw_packet.srcIP, raw_packet.protocol,
                             b64decode(user_pass))
-                ALERT_COUNTER += 1
 
     raw_data = str(parsed_packet.getlayer(Raw))
     for keyword in USER_KEYWORDS:
         if keyword in raw_data.lower() or (len(tempUserPass) > 1):
             find_user_pass(raw_packet, parsed_packet)
+
+
+# credit_card_check()
+#
+# Checks whether or not credit card numbers have been sent in-the-clear. If it believes
+# there are credentials in the packet,
+def credit_card_check(in_packet):
+    visa_num = findall('4[0-9]{12}(?:[0-9]{3})?', raw)
+    mastercard_num = findall('5[1-5][0-9]{14}', raw)
+    american_express_num = findall('3[47][0-9]{13}', raw)
+
+    if visa_num:
+        print_alert("Visa CC # sent in the clear", in_packet.srcIP, in_packet.protocol, visa_num)
+
+    if mastercard_num:
+        print_alert("MasterCard CC # sent in the clear", in_packet.srcIP, in_packet.protocol, mastercard_num)
+
+    if american_express_num:
+        print_alert("MasterCard CC # sent in the clear", in_packet.srcIP, in_packet.protocol, american_express_num)
 
 
 # sniff_packet()
@@ -257,11 +256,12 @@ def sniff_packet(in_packet):
     nikto_check(temp_packet)
     shellshock_check(temp_packet)
     user_pass_check(temp_packet, in_packet)
+    credit_card_check(temp_packet)
 
 
-def packet_callback(packet_to_check):
+def packet_callback(in_packet):
     try:
-        sniff_packet(packet_to_check)
+        sniff_packet(in_packet)
     except IndexError:
         pass
     except StandardError:
