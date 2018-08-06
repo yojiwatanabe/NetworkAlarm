@@ -1,6 +1,5 @@
 # NetworkAlarm
-A command-line tool to monitor local network traffic for possible security vulnerabilities. Warns user against possible nmap scans, Nikto scans, credentials sent in-the-clear, and shellshock attacks. Currently supports live monitoring and network capture (pcap) scanning. Built as part of the Computer System Security class at Tufts University.
-
+A command-line tool to monitor local network traffic for possible security vulnerabilities. Warns user against possible nmap scans, Nikto scans, credentials sent in-the-clear, and shellshock attacks. Currently supports live monitoring and network capture (pcap) scanning.
 
 #### Vulnerability Monitoring
 - nmap scans
