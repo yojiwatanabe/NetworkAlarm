@@ -261,7 +261,7 @@ def credit_card_check(in_packet):
     if maestro_num:
         print_alert("Maestro CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, maestro_num)
     if union_pay_num:
-        print_alert("Maestro CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, union_pay_num)
+        print_alert("Union Pay CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, union_pay_num)
 
 
 # sniff_packet()
