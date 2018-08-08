@@ -2,15 +2,12 @@
 
 """
 Yoji Watanabe
-Computer System Security
 Spring 2018
-Lab 5 - Python and Scapy
-alarm.py
 
-Source code for alarm.py, a program that listens on network interfaces or
-investigates pcap files in order to check against possible cyber attacks.
-Protects against nmap stealthy scans, Nikto scans, Shellshock attacks, and 
-credentials sent in-the-clear.
+
+Source code for alarm.py, a program that listens on network interfaces or investigates pcap files in order to check
+against possible cyber attacks. Protects against nmap stealthy scans, Nikto scans, Shellshock attacks, credentials sent
+in-the-clear, and credit card numbers sent in-the-clear.
 """
 
 import pcapy
@@ -234,8 +231,13 @@ def credit_card_check(in_packet):
     mastercard_num = findall('(?:5[1-5][0-9]{2}|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)[0-9]{12}', raw)
     diners_club_num = findall('3(?:0[0-5]|[68][0-9])[0-9]{11}', raw)
     discover_num = findall('6(?:011|5[0-9]{2})[0-9]{12}', raw)
-    jpc_num = findall('(?:2131|1800|35\d{3})\d{11}', raw)
+    jcb_num = findall('(?:2131|1800|35\d{3})\d{11}', raw)
     american_express_num = findall('3[47][0-9]{13}', raw)
+    bcglobal_num = findall('^(6541|6556)[0-9]{12}', raw)
+    korean_local_num = findall('^9[0-9]{15}', raw)
+    laser_card_num = findall('^(6304|6706|6709|6771)[0-9]{12,15}', raw)
+    maestro_num = findall('^(5018|5020|5038|6304|6759|6761|6763)[0-9]{8,15}', raw)
+    union_pay_num = findall('^(62[0-9]{14,17})', raw)
 
     if visa_num:
         print_alert("Visa CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, visa_num)
@@ -244,12 +246,22 @@ def credit_card_check(in_packet):
     if diners_club_num:
         print_alert("Diners Club CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, diners_club_num)
     if discover_num:
-        print_alert("MasterCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, discover_num)
-    if jpc_num:
-        print_alert("MasterCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, jpc_num)
+        print_alert("Discover CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, discover_num)
+    if jcb_num:
+        print_alert("JCB CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, jcb_num)
     if american_express_num:
         print_alert("American Express CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol,
                     american_express_num)
+    if bcglobal_num:
+        print_alert("BCGlobal CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, bcglobal_num)
+    if korean_local_num:
+        print_alert("KoreanLocalCard CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, korean_local_num)
+    if laser_card_num:
+        print_alert("JCB CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, laser_card_num)
+    if maestro_num:
+        print_alert("Maestro CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, maestro_num)
+    if union_pay_num:
+        print_alert("Maestro CC # sent in-the-clear", in_packet.srcIP, in_packet.protocol, union_pay_num)
 
 
 # sniff_packet()
